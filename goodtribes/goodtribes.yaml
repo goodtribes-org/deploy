@@ -1,0 +1,95 @@
+---
+# Source: goodtribes/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: goodtribes
+---
+# Source: goodtribes/templates/frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-frontend
+  namespace: goodtribes
+spec:
+  selector:
+    app: goodtribes-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+---
+# Source: goodtribes/templates/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-frontend
+  namespace: goodtribes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: goodtribes-frontend
+  template:
+    metadata:
+      labels:
+        app: goodtribes-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1610e38cb5757586c412cb830aa88baaecb95f7a"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+# Source: goodtribes/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: goodtribes-ingress
+  namespace: goodtribes
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: http
+    kubernetes.io/ingress.class: traefik
+    kubernetes.io/tls-acme: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure,web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: goodtribes.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-frontend
+                port:
+                  number: 80
+    - host: www.goodtribes.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-frontend
+                port:
+                  number: 80
+  tls:
+    - hosts:
+      - goodtribes.org
+      - www.goodtribes.org
+      secretName: goodtribes-tls
