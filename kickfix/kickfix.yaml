@@ -1,0 +1,237 @@
+---
+# Source: kickfix/templates/uploads-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: release-name-uploads
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: kickfix/templates/backend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: release-name-backend
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+# Source: kickfix/templates/frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: release-name-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+# Source: kickfix/templates/mongodb-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-mongodb
+spec:
+  type: ClusterIP
+  selector:
+    app: release-name-mongodb
+  ports:
+    - port: 27017
+      targetPort: 27017
+---
+# Source: kickfix/templates/backend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: release-name-backend
+  labels:
+    app: release-name-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: release-name-backend
+  template:
+    metadata:
+      labels:
+        app: release-name-backend
+    spec:
+      containers:
+        - name: backend
+          image: "ghcr.io/goodtribes-org/kickfix/backend:2127ddd4f378c31a39f47a62236c32f4fad725ff"
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DATABASE_URL
+              value: "mongodb://release-name-mongodb:27017/workapp?replicaSet=rs0&directConnection=true"
+            - name: JWT_SECRET
+              value: ""
+            - name: FRONTEND_URL
+              value: "https://www.kickfix.se,https://kickfix.se"
+            - name: PORT
+              value: "5000"
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: release-name-uploads
+---
+# Source: kickfix/templates/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: release-name-frontend
+  labels:
+    app: release-name-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: release-name-frontend
+  template:
+    metadata:
+      labels:
+        app: release-name-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "ghcr.io/goodtribes-org/kickfix/frontend:2127ddd4f378c31a39f47a62236c32f4fad725ff"
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REACT_APP_API_URL
+              value: "https://api.kickfix.se/api"
+---
+# Source: kickfix/templates/mongodb-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: release-name-mongodb
+  labels:
+    app: release-name-mongodb
+spec:
+  serviceName: release-name-mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: release-name-mongodb
+  template:
+    metadata:
+      labels:
+        app: release-name-mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: "mongo:7"
+          args: ["--replSet", "rs0"]
+          ports:
+            - containerPort: 27017
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - bash
+                  - -c
+                  - |
+                    for i in $(seq 1 30); do
+                      mongosh --eval "try { rs.status().ok } catch(e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }) }" && break
+                      sleep 2
+                    done
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+# Source: kickfix/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: release-name-frontend-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: http
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    kubernetes.io/ingress.class: traefik
+    kubernetes.io/tls-acme: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure,web
+spec:
+  tls:
+    - hosts:
+        - www.kickfix.se
+        - kickfix.se
+      secretName: release-name-frontend-tls
+  rules:
+    - host: www.kickfix.se
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: release-name-frontend
+                port:
+                  number: 3000
+    - host: kickfix.se
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: release-name-frontend
+                port:
+                  number: 3000
+---
+# Source: kickfix/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: release-name-backend-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: http
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    kubernetes.io/ingress.class: traefik
+    kubernetes.io/tls-acme: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure,web
+spec:
+  tls:
+    - hosts:
+        - api.kickfix.se
+      secretName: release-name-backend-tls
+  rules:
+    - host: api.kickfix.se
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: release-name-backend
+                port:
+                  number: 5000
+          - path: /uploads
+            pathType: Prefix
+            backend:
+              service:
+                name: release-name-backend
+                port:
+                  number: 5000
