@@ -34,9 +34,11 @@ spec:
       labels:
         app: goodtribes-frontend
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1610e38cb5757586c412cb830aa88baaecb95f7a"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:42d63f2a1477667bb99215ffd38cb298bbd5196b"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
