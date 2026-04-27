@@ -1,0 +1,70 @@
+name: Feature Request
+description: Request a new feature for kickfix, asylguiden.se, or goodtribes.org
+title: "[Feature] "
+labels: ["feature-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to request a feature for any of the Goodtribes projects. Fill in as much detail as you can — this goes straight into the planning pipeline.
+
+  - type: dropdown
+    id: project
+    attributes:
+      label: Project
+      description: Which project does this feature belong to?
+      options:
+        - kickfix
+        - asylguiden.se
+        - goodtribes.org
+    validations:
+      required: true
+
+  - type: input
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A short, clear title for the feature.
+      placeholder: e.g. "Add email notifications when a new job is posted"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Motivation
+      description: What problem does this solve? Who benefits?
+      placeholder: |
+        As a [type of user], I want [goal] so that [reason].
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature. Be as specific as you can.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low — nice to have
+        - Medium — would improve my workflow
+        - High — blocking or critical
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know this is done?
+      placeholder: |
+        - [ ] Condition one
+        - [ ] Condition two
+    validations:
+      required: false
