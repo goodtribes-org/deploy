@@ -69,7 +69,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/kickfix/backend:2127ddd4f378c31a39f47a62236c32f4fad725ff"
+          image: "ghcr.io/goodtribes-org/kickfix/backend:baeaa11f03d68fdda8b81dd01d4381d295a3c435"
           ports:
             - containerPort: 5000
           env:
@@ -108,7 +108,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/kickfix/frontend:2127ddd4f378c31a39f47a62236c32f4fad725ff"
+          image: "ghcr.io/goodtribes-org/kickfix/frontend:baeaa11f03d68fdda8b81dd01d4381d295a3c435"
           ports:
             - containerPort: 3000
           env:
