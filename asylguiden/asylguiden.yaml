@@ -182,7 +182,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/asylguiden.se/backend:f84adfa9f98df7d16f82667116f630d1a2e39e02"
+          image: "ghcr.io/goodtribes-org/asylguiden.se/backend:e247335240a12e99d551317078d0bd3ddc4b9a59"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -254,7 +254,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/asylguiden.se/frontend:f84adfa9f98df7d16f82667116f630d1a2e39e02"
+          image: "ghcr.io/goodtribes-org/asylguiden.se/frontend:e247335240a12e99d551317078d0bd3ddc4b9a59"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
