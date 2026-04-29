@@ -62,7 +62,6 @@ metadata:
   name: goodtribes-ingress
   namespace: goodtribes
   annotations:
-    acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: http
     kubernetes.io/ingress.class: traefik
     kubernetes.io/tls-acme: "true"
