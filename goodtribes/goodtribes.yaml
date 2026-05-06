@@ -5,18 +5,171 @@ kind: Namespace
 metadata:
   name: goodtribes
 ---
+# Source: goodtribes/templates/meilisearch-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: goodtribes-meilisearch
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: goodtribes/templates/postgres-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: goodtribes-postgres
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: goodtribes/templates/backend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-backend
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - port: 1337
+      targetPort: 1337
+---
 # Source: goodtribes/templates/frontend-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: goodtribes-frontend
   namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
 spec:
   selector:
-    app: goodtribes-frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: goodtribes
   ports:
-    - port: 80
-      targetPort: 80
+    - port: 3000
+      targetPort: 3000
+---
+# Source: goodtribes/templates/meilisearch-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-meilisearch
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: meilisearch
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - port: 7700
+      targetPort: 7700
+---
+# Source: goodtribes/templates/postgres-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-postgres
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Source: goodtribes/templates/backend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-backend
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: backend
+          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:8a8541e73343d1770be5baad0bd6041d00b93fe8"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 1337
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+            - name: DATABASE_CLIENT
+              value: "postgres"
+            - name: DATABASE_HOST
+              value: "goodtribes-postgres"
+            - name: DATABASE_NAME
+              value: "goodtribes"
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_SSL
+              value: "false"
+            - name: DATABASE_USERNAME
+              value: "goodtribes"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: MEILI_HOST
+              value: "http://goodtribes-meilisearch:7700"
+            - name: PORT
+              value: "1337"
+          readinessProbe:
+            httpGet:
+              path: /_health
+              port: 1337
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /_health
+              port: 1337
+            initialDelaySeconds: 30
+            periodSeconds: 30
 ---
 # Source: goodtribes/templates/frontend-deployment.yaml
 apiVersion: apps/v1
@@ -24,36 +177,171 @@ kind: Deployment
 metadata:
   name: goodtribes-frontend
   namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: frontend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: goodtribes-frontend
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: goodtribes
   template:
     metadata:
       labels:
-        app: goodtribes-frontend
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: goodtribes
     spec:
       imagePullSecrets:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:42d63f2a1477667bb99215ffd38cb298bbd5196b"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:8a8541e73343d1770be5baad0bd6041d00b93fe8"
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 80
-            initialDelaySeconds: 10
-            periodSeconds: 30
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+            - name: NEXT_PUBLIC_MEILI_HOST
+              value: "http://goodtribes-meilisearch:7700"
+            - name: NEXT_PUBLIC_STRAPI_URL
+              value: "http://goodtribes-backend:1337"
           readinessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 3000
             initialDelaySeconds: 5
             periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+---
+# Source: goodtribes/templates/meilisearch-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-meilisearch
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: meilisearch
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: meilisearch
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: meilisearch
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      containers:
+        - name: meilisearch
+          image: "getmeili/meilisearch:v1.6"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7700
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+            - name: MEILI_ENV
+              value: "production"
+          volumeMounts:
+            - name: meili-data
+              mountPath: /meili_data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 7700
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 7700
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: meili-data
+          persistentVolumeClaim:
+            claimName: goodtribes-meilisearch
+---
+# Source: goodtribes/templates/postgres-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-postgres
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      containers:
+        - name: postgres
+          image: "postgres:16-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+            - name: POSTGRES_DB
+              value: "goodtribes"
+            - name: POSTGRES_USER
+              value: "goodtribes"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - goodtribes
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - goodtribes
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: goodtribes-postgres
 ---
 # Source: goodtribes/templates/ingress.yaml
 apiVersion: networking.k8s.io/v1
@@ -61,7 +349,11 @@ kind: Ingress
 metadata:
   name: goodtribes-ingress
   namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
   annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: http
     kubernetes.io/ingress.class: traefik
     kubernetes.io/tls-acme: "true"
@@ -78,7 +370,21 @@ spec:
               service:
                 name: goodtribes-frontend
                 port:
-                  number: 80
+                  number: 3000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-backend
+                port:
+                  number: 1337
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-backend
+                port:
+                  number: 1337
     - host: www.goodtribes.org
       http:
         paths:
@@ -88,7 +394,21 @@ spec:
               service:
                 name: goodtribes-frontend
                 port:
-                  number: 80
+                  number: 3000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-backend
+                port:
+                  number: 1337
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-backend
+                port:
+                  number: 1337
   tls:
     - hosts:
       - goodtribes.org
