@@ -131,7 +131,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:1a37372149c022e3e17df71f4c95004dc6be3a95"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:3b454171baf4cc35863de8db401e349e55a30455"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -197,7 +197,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1a37372149c022e3e17df71f4c95004dc6be3a95"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:3b454171baf4cc35863de8db401e349e55a30455"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -371,6 +371,13 @@ spec:
                 name: goodtribes-frontend
                 port:
                   number: 3000
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-frontend
+                port:
+                  number: 3000
           - path: /api
             pathType: Prefix
             backend:
@@ -389,6 +396,13 @@ spec:
       http:
         paths:
           - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-frontend
+                port:
+                  number: 3000
+          - path: /api/auth
             pathType: Prefix
             backend:
               service:
