@@ -164,11 +164,9 @@ spec:
         app.kubernetes.io/name: backend
         app.kubernetes.io/part-of: goodtribes
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:a92a7ce7b2cb1915b15dff89b72eee1f375fc2ee"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:023c6d65bf97b9093e6a1b8d55a573fc5b643208"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -230,11 +228,9 @@ spec:
         app.kubernetes.io/name: frontend
         app.kubernetes.io/part-of: goodtribes
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:a92a7ce7b2cb1915b15dff89b72eee1f375fc2ee"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:023c6d65bf97b9093e6a1b8d55a573fc5b643208"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
