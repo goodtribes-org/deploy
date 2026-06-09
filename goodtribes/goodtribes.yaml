@@ -166,7 +166,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:023c6d65bf97b9093e6a1b8d55a573fc5b643208"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:283ad835bc9458fb22662d35ca981968d6d5896b"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -230,7 +230,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:023c6d65bf97b9093e6a1b8d55a573fc5b643208"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:283ad835bc9458fb22662d35ca981968d6d5896b"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
