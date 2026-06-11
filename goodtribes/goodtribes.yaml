@@ -5,6 +5,16 @@ kind: Namespace
 metadata:
   name: goodtribes
 ---
+# Source: goodtribes/templates/ghcr-pull-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ghcr-pull-secret
+  namespace: goodtribes
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJnaGNyLmlvIjp7ImF1dGgiOiJUbWxyYkdGelIzVnVibUZ6T21kb2IxOWlaVlpWZEd0cVVITmtaREZWU1ZCMlUxUXdkRWRYU0dwbVdrMWpaell3TjJ4RU4xST0ifX19
+---
 # Source: goodtribes/templates/meilisearch-pvc.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -164,9 +174,11 @@ spec:
         app.kubernetes.io/name: backend
         app.kubernetes.io/part-of: goodtribes
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:05bcf575eae89cf127253cb6d739e1829f811ffb"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:806c2825ae031df4c234ca406b8e1b2ad569e0a4"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -228,9 +240,11 @@ spec:
         app.kubernetes.io/name: frontend
         app.kubernetes.io/part-of: goodtribes
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:05bcf575eae89cf127253cb6d739e1829f811ffb"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:806c2825ae031df4c234ca406b8e1b2ad569e0a4"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
