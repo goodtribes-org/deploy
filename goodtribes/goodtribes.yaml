@@ -152,6 +152,23 @@ spec:
     - port: 5432
       targetPort: 5432
 ---
+# Source: goodtribes/templates/redis-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-redis
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
 # Source: goodtribes/templates/backend-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -178,7 +195,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:e5cd979075c8e943e2612e3a1ce2c1543341b398"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:197e77c115ffd2ce83d0eb59f92e6be6bc99fa38"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -244,7 +261,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:e5cd979075c8e943e2612e3a1ce2c1543341b398"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:197e77c115ffd2ce83d0eb59f92e6be6bc99fa38"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -455,6 +472,51 @@ spec:
         - name: postgres-data
           persistentVolumeClaim:
             claimName: goodtribes-postgres
+---
+# Source: goodtribes/templates/redis-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-redis
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      containers:
+        - name: redis
+          image: "redis:7-alpine"
+          imagePullPolicy: IfNotPresent
+          command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)", "--save", "", "--appendonly", "no"]
+          ports:
+            - containerPort: 6379
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "-a", "$(REDIS_PASSWORD)", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "-a", "$(REDIS_PASSWORD)", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
 ---
 # Source: goodtribes/templates/ingress.yaml
 apiVersion: networking.k8s.io/v1
