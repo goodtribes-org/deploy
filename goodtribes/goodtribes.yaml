@@ -195,7 +195,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:e865a934f36a1d02c22621ef5eb8fd683aff7755"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:d872d7f384b52092a09f3914622defbbab302788"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -261,7 +261,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:e865a934f36a1d02c22621ef5eb8fd683aff7755"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:d872d7f384b52092a09f3914622defbbab302788"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
