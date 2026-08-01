@@ -195,7 +195,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:4a7e1010311bb353d182722ab1cd1477cc16c427"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/backend:8b90a0692e793ed32c405b1b8d16ebc15edafb80"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -261,7 +261,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:4a7e1010311bb353d182722ab1cd1477cc16c427"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:8b90a0692e793ed32c405b1b8d16ebc15edafb80"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -499,7 +499,15 @@ spec:
         - name: redis
           image: "redis:7-alpine"
           imagePullPolicy: IfNotPresent
-          command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)", "--save", "", "--appendonly", "no"]
+          # Run through a shell so $REDIS_PASSWORD is expanded by sh, not by
+          # Kubernetes. K8s only substitutes $(VAR) from the container's `env`
+          # list — never from `envFrom` — so the previous $(REDIS_PASSWORD) form
+          # was passed through literally and Redis came up with "$(REDIS_PASSWORD)"
+          # as its actual password.
+          command:
+            - sh
+            - -c
+            - 'exec redis-server --requirepass "$REDIS_PASSWORD" --save "" --appendonly no'
           ports:
             - containerPort: 6379
               protocol: TCP
@@ -507,14 +515,23 @@ spec:
             - secretRef:
                 name: goodtribes-secret
           env:
+          # Probes need the same treatment: $(VAR) is never expanded in exec
+          # probe commands at all. Grep for PONG so a wrong password fails the
+          # probe instead of passing on redis-cli's zero exit code.
           readinessProbe:
             exec:
-              command: ["redis-cli", "-a", "$(REDIS_PASSWORD)", "ping"]
+              command:
+                - sh
+                - -c
+                - 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG'
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             exec:
-              command: ["redis-cli", "-a", "$(REDIS_PASSWORD)", "ping"]
+              command:
+                - sh
+                - -c
+                - 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG'
             initialDelaySeconds: 15
             periodSeconds: 20
 ---
