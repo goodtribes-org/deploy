@@ -178,7 +178,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:07c898ac896b3a4dcefd49dcf7cf5d15678ad106"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:b142134d3171eb962924075f266bcea0863be23d"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -482,13 +482,95 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  curl -sfS -X POST \
+                  curl -sfS --max-time 240 -X POST \
                     -H "Authorization: Bearer $CRON_SECRET" \
                     -H "Content-Type: application/json" \
                     http://goodtribes-frontend:3000/api/cron/github-sync
               envFrom:
                 - secretRef:
                     name: goodtribes-secret
+---
+# Source: goodtribes/templates/postgres-backup-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: goodtribes-postgres-backup
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/part-of: goodtribes
+        spec:
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup
+              emptyDir: {}
+          initContainers:
+            # Dumps to a shared emptyDir first; the sidecar below uploads it to
+            # MinIO. Two containers instead of one image with both pg_dump and
+            # mc installed.
+            - name: pg-dump
+              image: "postgres:16-alpine"
+              # $VAR is expanded by sh, not Kubernetes — envFrom vars are never
+              # substituted via the $(VAR) syntax (see redis-deployment.yaml
+              # for the incident this convention comes from).
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+                  FILENAME="goodtribes-${STAMP}.dump"
+                  PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+                    -h goodtribes-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                    --format=custom --file "/backup/${FILENAME}"
+                  echo "$FILENAME" > /backup/latest-filename
+              envFrom:
+                - secretRef:
+                    name: goodtribes-secret
+              env:
+                - name: POSTGRES_DB
+                  value: "goodtribes"
+                - name: POSTGRES_USER
+                  value: "goodtribes"
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+          containers:
+            - name: upload-and-prune
+              image: minio/mc:latest
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  mc alias set local http://goodtribes-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+                  FILENAME="$(cat /backup/latest-filename)"
+                  mc cp "/backup/${FILENAME}" "local/goodtribes-backups/${FILENAME}"
+                  # Prune anything past the retention window so the bucket
+                  # doesn't grow unbounded.
+                  mc find "local/goodtribes-backups" \
+                    --older-than 14d \
+                    --exec "mc rm {}"
+              envFrom:
+                - secretRef:
+                    name: goodtribes-secret
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
 ---
 # Source: goodtribes/templates/ingress.yaml
 apiVersion: networking.k8s.io/v1
@@ -561,6 +643,7 @@ spec:
               mc alias set local http://goodtribes-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
               mc mb --ignore-existing local/goodtribes-public
               mc mb --ignore-existing local/goodtribes-private
+              mc mb --ignore-existing local/goodtribes-backups
               mc anonymous set public local/goodtribes-public
           envFrom:
             - secretRef:
