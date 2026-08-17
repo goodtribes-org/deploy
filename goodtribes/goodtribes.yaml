@@ -1,0 +1,650 @@
+---
+# Source: goodtribes/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: goodtribes
+---
+# Source: goodtribes/templates/ghcr-pull-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ghcr-pull-secret
+  namespace: goodtribes
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJnaGNyLmlvIjp7ImF1dGgiOiJUbWxyYkdGelIzVnVibUZ6T21kb2IxOWlaVlpWZEd0cVVITmtaREZWU1ZCMlUxUXdkRWRYU0dwbVdrMWpaell3TjJ4RU4xST0ifX19
+---
+# Source: goodtribes/templates/meilisearch-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: goodtribes-meilisearch
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: goodtribes/templates/minio-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: goodtribes-minio
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Source: goodtribes/templates/postgres-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: goodtribes-postgres
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: goodtribes/templates/frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-frontend
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+# Source: goodtribes/templates/meilisearch-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-meilisearch
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: meilisearch
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - port: 7700
+      targetPort: 7700
+---
+# Source: goodtribes/templates/minio-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-minio
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
+---
+# Source: goodtribes/templates/postgres-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-postgres
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Source: goodtribes/templates/redis-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: goodtribes-redis
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: goodtribes
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+# Source: goodtribes/templates/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-frontend
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: frontend
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:8da70b32107e0cacedb32d4b581573c976a5fbab"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+            - name: NEXT_PUBLIC_MEILI_HOST
+              value: "http://goodtribes-meilisearch:7700"
+            - name: NEXT_PUBLIC_STORAGE_URL
+              value: "https://goodtribes.org/storage"
+            - name: S3_ENDPOINT
+              value: "http://goodtribes-minio:9000"
+            - name: S3_PRIVATE_BUCKET
+              value: "goodtribes-private"
+            - name: S3_PUBLIC_BUCKET
+              value: "goodtribes-public"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+---
+# Source: goodtribes/templates/meilisearch-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-meilisearch
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: meilisearch
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: meilisearch
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: meilisearch
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      containers:
+        - name: meilisearch
+          image: "getmeili/meilisearch:v1.6"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7700
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+            - name: MEILI_ENV
+              value: "production"
+          volumeMounts:
+            - name: meili-data
+              mountPath: /meili_data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 7700
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 7700
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: meili-data
+          persistentVolumeClaim:
+            claimName: goodtribes-meilisearch
+---
+# Source: goodtribes/templates/minio-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-minio
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: minio
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      containers:
+        - name: minio
+          image: "minio/minio:latest"
+          imagePullPolicy: IfNotPresent
+          command: ["minio", "server", "/data", "--console-address", ":9001"]
+          ports:
+            - containerPort: 9000
+              protocol: TCP
+            - containerPort: 9001
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+          volumeMounts:
+            - name: minio-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: minio-data
+          persistentVolumeClaim:
+            claimName: goodtribes-minio
+---
+# Source: goodtribes/templates/postgres-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-postgres
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      containers:
+        - name: postgres
+          image: "postgres:16-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+            - name: POSTGRES_DB
+              value: "goodtribes"
+            - name: POSTGRES_USER
+              value: "goodtribes"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - goodtribes
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - goodtribes
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: goodtribes-postgres
+---
+# Source: goodtribes/templates/redis-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goodtribes-redis
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+    app.kubernetes.io/name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/part-of: goodtribes
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/part-of: goodtribes
+    spec:
+      containers:
+        - name: redis
+          image: "redis:7-alpine"
+          imagePullPolicy: IfNotPresent
+          # Run through a shell so $REDIS_PASSWORD is expanded by sh, not by
+          # Kubernetes. K8s only substitutes $(VAR) from the container's `env`
+          # list — never from `envFrom` — so the previous $(REDIS_PASSWORD) form
+          # was passed through literally and Redis came up with "$(REDIS_PASSWORD)"
+          # as its actual password.
+          command:
+            - sh
+            - -c
+            - 'exec redis-server --requirepass "$REDIS_PASSWORD" --save "" --appendonly no'
+          ports:
+            - containerPort: 6379
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
+          env:
+          # Probes need the same treatment: $(VAR) is never expanded in exec
+          # probe commands at all. Grep for PONG so a wrong password fails the
+          # probe instead of passing on redis-cli's zero exit code.
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG'
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG'
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+# Source: goodtribes/templates/github-sync-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: goodtribes-github-sync
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 120
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/part-of: goodtribes
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: github-sync
+              image: "curlimages/curl:8.11.1"
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  curl -sfS --max-time 240 -X POST \
+                    -H "Authorization: Bearer $CRON_SECRET" \
+                    -H "Content-Type: application/json" \
+                    http://goodtribes-frontend:3000/api/cron/github-sync
+              envFrom:
+                - secretRef:
+                    name: goodtribes-secret
+---
+# Source: goodtribes/templates/postgres-backup-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: goodtribes-postgres-backup
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/part-of: goodtribes
+        spec:
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup
+              emptyDir: {}
+          initContainers:
+            # Dumps to a shared emptyDir first; the sidecar below uploads it to
+            # MinIO. Two containers instead of one image with both pg_dump and
+            # mc installed.
+            - name: pg-dump
+              image: "postgres:16-alpine"
+              # $VAR is expanded by sh, not Kubernetes — envFrom vars are never
+              # substituted via the $(VAR) syntax (see redis-deployment.yaml
+              # for the incident this convention comes from).
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+                  FILENAME="goodtribes-${STAMP}.dump"
+                  PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
+                    -h goodtribes-postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                    --format=custom --file "/backup/${FILENAME}"
+                  echo "$FILENAME" > /backup/latest-filename
+              envFrom:
+                - secretRef:
+                    name: goodtribes-secret
+              env:
+                - name: POSTGRES_DB
+                  value: "goodtribes"
+                - name: POSTGRES_USER
+                  value: "goodtribes"
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+          containers:
+            - name: upload-and-prune
+              image: minio/mc:latest
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  mc alias set local http://goodtribes-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+                  FILENAME="$(cat /backup/latest-filename)"
+                  mc cp "/backup/${FILENAME}" "local/goodtribes-backups/${FILENAME}"
+                  # Prune anything past the retention window so the bucket
+                  # doesn't grow unbounded.
+                  mc find "local/goodtribes-backups" \
+                    --older-than 14d \
+                    --exec "mc rm {}"
+              envFrom:
+                - secretRef:
+                    name: goodtribes-secret
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+---
+# Source: goodtribes/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: goodtribes-ingress
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: http
+    kubernetes.io/ingress.class: traefik
+    kubernetes.io/tls-acme: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure,web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: goodtribes.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-frontend
+                port:
+                  number: 3000
+    - host: www.goodtribes.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: goodtribes-frontend
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+      - goodtribes.org
+      - www.goodtribes.org
+      secretName: goodtribes-tls
+---
+# Source: goodtribes/templates/minio-init-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: goodtribes-minio-init
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: minio-init
+          image: minio/mc:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mc alias set local http://goodtribes-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+              mc mb --ignore-existing local/goodtribes-public
+              mc mb --ignore-existing local/goodtribes-private
+              mc mb --ignore-existing local/goodtribes-backups
+              mc anonymous set public local/goodtribes-public
+          envFrom:
+            - secretRef:
+                name: goodtribes-secret
