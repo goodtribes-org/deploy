@@ -163,7 +163,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/asylguiden.se/backend:73be887fadbed0e6c5ad3605a97fafa63ac17224"
+          image: "ghcr.io/goodtribes-org/asylguiden.se/backend:df3527dba178ddb244427664a1a2a379f9b007e0"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -231,7 +231,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/asylguiden.se/frontend:73be887fadbed0e6c5ad3605a97fafa63ac17224"
+          image: "ghcr.io/goodtribes-org/asylguiden.se/frontend:df3527dba178ddb244427664a1a2a379f9b007e0"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -240,12 +240,10 @@ spec:
             - secretRef:
                 name: asylguiden-secret
           env:
+            - name: MEILI_HOST
+              value: "http://asylguiden-meilisearch:7700"
             - name: NEXTAUTH_URL
               value: "https://asylguiden.se"
-            - name: NEXT_PUBLIC_MEILI_HOST
-              value: "http://asylguiden-meilisearch:7700"
-            - name: NEXT_PUBLIC_MEILI_SEARCH_KEY
-              value: ""
             - name: NEXT_PUBLIC_STRAPI_URL
               value: "http://asylguiden-backend:1337"
           readinessProbe:
@@ -413,7 +411,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:73be887fadbed0e6c5ad3605a97fafa63ac17224"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=eurostat"]
               env:
@@ -457,7 +455,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:73be887fadbed0e6c5ad3605a97fafa63ac17224"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=frontex"]
               env:
@@ -501,7 +499,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:73be887fadbed0e6c5ad3605a97fafa63ac17224"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=migrationsverket"]
               env:
@@ -545,7 +543,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:73be887fadbed0e6c5ad3605a97fafa63ac17224"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=migrationsverket-excel"]
               env:
@@ -589,7 +587,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:73be887fadbed0e6c5ad3605a97fafa63ac17224"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=scb"]
               env:
@@ -633,7 +631,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:73be887fadbed0e6c5ad3605a97fafa63ac17224"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=unhcr"]
               env:
