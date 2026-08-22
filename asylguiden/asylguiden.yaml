@@ -163,7 +163,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/asylguiden.se/backend:df3527dba178ddb244427664a1a2a379f9b007e0"
+          image: "ghcr.io/goodtribes-org/asylguiden.se/backend:d4fd4c1694be99238cbdd0366360eaad317a4e99"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -231,7 +231,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/asylguiden.se/frontend:df3527dba178ddb244427664a1a2a379f9b007e0"
+          image: "ghcr.io/goodtribes-org/asylguiden.se/frontend:d4fd4c1694be99238cbdd0366360eaad317a4e99"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -411,7 +411,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:d4fd4c1694be99238cbdd0366360eaad317a4e99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=eurostat"]
               env:
@@ -455,7 +455,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:d4fd4c1694be99238cbdd0366360eaad317a4e99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=frontex"]
               env:
@@ -499,7 +499,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:d4fd4c1694be99238cbdd0366360eaad317a4e99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=migrationsverket"]
               env:
@@ -543,7 +543,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:d4fd4c1694be99238cbdd0366360eaad317a4e99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=migrationsverket-excel"]
               env:
@@ -587,7 +587,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:d4fd4c1694be99238cbdd0366360eaad317a4e99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=scb"]
               env:
@@ -631,7 +631,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:df3527dba178ddb244427664a1a2a379f9b007e0"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:d4fd4c1694be99238cbdd0366360eaad317a4e99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=unhcr"]
               env:
