@@ -163,7 +163,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/asylguiden.se/backend:0f4b859c7048665e76ca799cd304db0f9afc630e"
+          image: "ghcr.io/goodtribes-org/asylguiden.se/backend:fa7f45be5f72a92f32c170036e3046f9c98e6d99"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1337
@@ -198,6 +198,8 @@ spec:
               value: "http://asylguiden-meilisearch:7700"
             - name: PORT
               value: "1337"
+            - name: PUBLIC_URL
+              value: "https://content.asylguiden.se"
             - name: TRANSFER_TOKEN_SALT
               value: "changeme"
           readinessProbe:
@@ -239,7 +241,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/asylguiden.se/frontend:0f4b859c7048665e76ca799cd304db0f9afc630e"
+          image: "ghcr.io/goodtribes-org/asylguiden.se/frontend:fa7f45be5f72a92f32c170036e3046f9c98e6d99"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -425,7 +427,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:0f4b859c7048665e76ca799cd304db0f9afc630e"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:fa7f45be5f72a92f32c170036e3046f9c98e6d99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=eurostat"]
               env:
@@ -469,7 +471,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:0f4b859c7048665e76ca799cd304db0f9afc630e"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:fa7f45be5f72a92f32c170036e3046f9c98e6d99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=frontex"]
               env:
@@ -513,7 +515,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:0f4b859c7048665e76ca799cd304db0f9afc630e"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:fa7f45be5f72a92f32c170036e3046f9c98e6d99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=migrationsverket"]
               env:
@@ -557,7 +559,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:0f4b859c7048665e76ca799cd304db0f9afc630e"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:fa7f45be5f72a92f32c170036e3046f9c98e6d99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=migrationsverket-excel"]
               env:
@@ -601,7 +603,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:0f4b859c7048665e76ca799cd304db0f9afc630e"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:fa7f45be5f72a92f32c170036e3046f9c98e6d99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=scb"]
               env:
@@ -645,7 +647,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: collector
-              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:0f4b859c7048665e76ca799cd304db0f9afc630e"
+              image: "ghcr.io/goodtribes-org/asylguiden.se/collector:fa7f45be5f72a92f32c170036e3046f9c98e6d99"
               imagePullPolicy: IfNotPresent
               args: ["--once", "--collector=unhcr"]
               env:
@@ -681,6 +683,9 @@ spec:
       hosts:
         - "asylguiden.se"
         - "www.asylguiden.se"
+    - secretName: asylguiden-cms-tls
+      hosts:
+        - "content.asylguiden.se"
   rules:
     - host: "asylguiden.se"
       http:
@@ -702,3 +707,13 @@ spec:
                 name: asylguiden-frontend
                 port:
                   number: 3000
+    - host: "content.asylguiden.se"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: asylguiden-backend
+                port:
+                  number: 1337
