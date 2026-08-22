@@ -59,6 +59,11 @@ metadata:
     app: release-name-backend
 spec:
   replicas: 1
+  # The uploads PVC is ReadWriteOnce. A RollingUpdate starts the replacement pod
+  # before the old one releases the volume, which deadlocks the rollout whenever
+  # the two land on different nodes. Recreate frees the volume first.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: release-name-backend
@@ -71,18 +76,23 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/kickfix/backend:a0b134e65ef581e29343c990e65b032b957005ef"
+          image: "ghcr.io/goodtribes-org/kickfix/backend:502dab86e0626bf9a67db4b84a56ce630fd94323"
           ports:
             - containerPort: 5000
           env:
             - name: DATABASE_URL
               value: "mongodb://release-name-mongodb:27017/workapp?replicaSet=rs0&directConnection=true"
             - name: JWT_SECRET
-              value: ""
+              valueFrom:
+                secretKeyRef:
+                  name: kickfix-backend-secrets
+                  key: JWT_SECRET
             - name: FRONTEND_URL
               value: "https://www.kickfix.se,https://kickfix.se"
             - name: PORT
               value: "5000"
+            - name: NODE_ENV
+              value: "production"
           volumeMounts:
             - name: uploads
               mountPath: /app/uploads
@@ -112,7 +122,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/kickfix/frontend:a0b134e65ef581e29343c990e65b032b957005ef"
+          image: "ghcr.io/goodtribes-org/kickfix/frontend:502dab86e0626bf9a67db4b84a56ce630fd94323"
           ports:
             - containerPort: 3000
           env:
