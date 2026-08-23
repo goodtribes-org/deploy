@@ -72,6 +72,15 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: goodtribes
+  annotations:
+    # Standard annotation-based scrape discovery — works with a plain
+    # Prometheus kubernetes_sd_configs setup, unlike a ServiceMonitor which
+    # needs the Prometheus Operator CRDs installed. /api/metrics itself
+    # requires a CRON_SECRET bearer token (see its route), so a scrape
+    # config also needs `bearer_token`/`bearer_token_file` set to that value.
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/api/metrics"
+    prometheus.io/port: "3000"
 spec:
   selector:
     app.kubernetes.io/name: frontend
@@ -178,7 +187,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1b49929a6054858f4ce35d2a5d11d6027269dfc5"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:61af1e7900136e06415e706d769e691305d032c4"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
