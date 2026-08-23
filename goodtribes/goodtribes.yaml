@@ -178,7 +178,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:779ffbffb31fbe6f407a41d4e15fda2075dfefc2"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1ca4afa9faa79a7ae251d65220f570e9bd14691b"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -186,6 +186,8 @@ spec:
             - secretRef:
                 name: goodtribes-secret
           env:
+            - name: DATABASE_CONNECTION_LIMIT
+              value: "10"
             - name: NEXT_PUBLIC_MEILI_HOST
               value: "http://goodtribes-meilisearch:7700"
             - name: NEXT_PUBLIC_STORAGE_URL
@@ -196,9 +198,15 @@ spec:
               value: "goodtribes-private"
             - name: S3_PUBLIC_BUCKET
               value: "goodtribes-public"
+          # Readiness checks DB+Redis (/api/health) so traffic routes away from
+          # a pod whose dependencies are broken. Liveness deliberately stays on
+          # "/" — a plain process-alive check — because if it also checked
+          # DB/Redis, a downstream outage would get every frontend pod killed
+          # and restarted in a loop, which fixes nothing and adds a restart
+          # storm on top of the outage.
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/health
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -240,6 +248,13 @@ spec:
           ports:
             - containerPort: 7700
               protocol: TCP
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 512Mi
           envFrom:
             - secretRef:
                 name: goodtribes-secret
@@ -300,6 +315,13 @@ spec:
               protocol: TCP
             - containerPort: 9001
               protocol: TCP
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
           envFrom:
             - secretRef:
                 name: goodtribes-secret
@@ -355,6 +377,13 @@ spec:
           ports:
             - containerPort: 5432
               protocol: TCP
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 512Mi
           envFrom:
             - secretRef:
                 name: goodtribes-secret
@@ -426,6 +455,13 @@ spec:
           ports:
             - containerPort: 6379
               protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
           envFrom:
             - secretRef:
                 name: goodtribes-secret
