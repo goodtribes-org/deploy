@@ -178,7 +178,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1ca4afa9faa79a7ae251d65220f570e9bd14691b"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1b49929a6054858f4ce35d2a5d11d6027269dfc5"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -229,6 +229,9 @@ metadata:
     app.kubernetes.io/name: meilisearch
 spec:
   replicas: 1
+  # See the comment on the postgres Deployment's strategy — same reasoning:
+  # a single ReadWriteOnce PVC can't be mounted by an old and new pod at
+  # once, so Recreate is the correct choice, not an oversight.
   strategy:
     type: Recreate
   selector:
@@ -293,6 +296,9 @@ metadata:
     app.kubernetes.io/name: minio
 spec:
   replicas: 1
+  # See the comment on the postgres Deployment's strategy — same reasoning:
+  # a single ReadWriteOnce PVC can't be mounted by an old and new pod at
+  # once, so Recreate is the correct choice, not an oversight.
   strategy:
     type: Recreate
   selector:
@@ -358,6 +364,11 @@ metadata:
     app.kubernetes.io/name: postgres
 spec:
   replicas: 1
+  # Recreate, not RollingUpdate, is intentional here: a single replica with a
+  # ReadWriteOnce PVC can't have an old and new pod both mount the volume at
+  # once, so a rolling update would just fail to schedule the new pod anyway.
+  # Recreate makes the resulting brief outage on every rollout explicit
+  # instead of surfacing as a confusing stuck deployment.
   strategy:
     type: Recreate
   selector:
