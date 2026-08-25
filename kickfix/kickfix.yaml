@@ -76,7 +76,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: backend
-          image: "ghcr.io/goodtribes-org/kickfix/backend:7fd3d0252438fc31a04df9ba48b903fe3811b169"
+          image: "ghcr.io/goodtribes-org/kickfix/backend:761393f5e70ff98142fa25aa3ecf7ef9faa2144c"
           ports:
             - containerPort: 5000
           env:
@@ -122,7 +122,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/kickfix/frontend:7fd3d0252438fc31a04df9ba48b903fe3811b169"
+          image: "ghcr.io/goodtribes-org/kickfix/frontend:761393f5e70ff98142fa25aa3ecf7ef9faa2144c"
           ports:
             - containerPort: 3000
           env:
