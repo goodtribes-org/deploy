@@ -5,6 +5,68 @@ kind: Namespace
 metadata:
   name: goodtribes
 ---
+# Source: goodtribes/templates/resourcequota.yaml
+# Caps total namespace resource consumption — directly relevant to the
+# 2026-08-23 outage (node-level resource starvation from too much scheduled
+# at once): even with per-workload requests/limits now set correctly, this
+# is the backstop that stops a *future* addition (a new workload, a runaway
+# CronJob, replicaCount bumped without thinking) from silently repeating
+# that failure mode. Sized generously above today's actual steady-state
+# usage, not tightly — its job is to catch genuine runaway growth, not to
+# micromanage day-to-day scheduling (that's what per-workload
+# requests/limits and node capacity are for).
+#
+# Math (steady-state, 1 replica each, current chart/values.yaml):
+#   requests: frontend 200m/256Mi + postgres 250m/512Mi + meilisearch
+#     250m/512Mi + redis 50m/64Mi + minio 100m/256Mi = ~850m / ~1.6Gi
+#   limits:   1000m/512Mi + 1000m/1Gi + 1000m/1Gi + 250m/256Mi + 500m/512Mi
+#     = ~3.75 cores / ~3.25Gi
+#   Plus headroom for the frontend HPA's documented ceiling (5 replicas,
+#   currently disabled) adding up to ~4 more replicas' worth, and a couple
+#   of concurrent transient CronJob/Job pods at the LimitRange defaults
+#   above. The values below leave roughly 1.5-2x margin over that combined
+#   estimate — revisit once real usage is visible via Prometheus/Grafana.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: goodtribes-namespace-quota
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  hard:
+    requests.cpu: "3"
+    requests.memory: 4Gi
+    limits.cpu: "10"
+    limits.memory: 8Gi
+---
+# Source: goodtribes/templates/limitrange.yaml
+# Every Deployment container already sets its own explicit resources, but
+# the various CronJob/Job containers (postgres-backup, minio-backup,
+# minio-init, github-sync) don't — this provides a default so none of them
+# are rejected outright once the ResourceQuota below is active (a
+# ResourceQuota scoping requests.cpu/requests.memory requires every pod to
+# specify a request, with no exception for one-shot Jobs). Sized generously
+# for what a curl/mc/pg_dump client process actually needs.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: goodtribes-default-limits
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      default:
+        cpu: 500m
+        memory: 256Mi
+---
 # Source: goodtribes/templates/ghcr-pull-secret.yaml
 apiVersion: v1
 kind: Secret
@@ -183,14 +245,44 @@ spec:
         app.kubernetes.io/name: frontend
         app.kubernetes.io/part-of: goodtribes
     spec:
+      # Nothing in this pod talks to the Kubernetes API — the auto-mounted
+      # default-ServiceAccount token would be unused attack surface.
+      automountServiceAccountToken: false
+      # Matches the Dockerfile's own `USER nextjs` (uid/gid 1001) exactly —
+      # this is defense-in-depth confirming what the image already does,
+      # not a behavior change: entrypoint.sh only runs `prisma migrate
+      # deploy` then execs node, neither needs root.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
       imagePullSecrets:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:f8f8fd540be0046eef4b77c3a4decbb38f8bf654"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:ea606a1adcff63e10f14552da80541f173e88015"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # Unconditional as of the ResourceQuota/LimitRange addition below —
+          # a namespace ResourceQuota scoping requests.cpu/requests.memory
+          # rejects any pod that omits a request outright, so this could no
+          # longer stay gated behind autoscaling.enabled without breaking
+          # scheduling entirely. Previously only applied when autoscaling
+          # was on (to avoid silently changing the single-replica
+          # deployment's QoS class) — that concern is now moot since every
+          # pod needs a request either way.
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 200m
+              memory: 256Mi
           envFrom:
             - secretRef:
                 name: goodtribes-secret
@@ -257,10 +349,19 @@ spec:
         app.kubernetes.io/name: meilisearch
         app.kubernetes.io/part-of: goodtribes
     spec:
+      # Nothing here talks to the Kubernetes API.
+      automountServiceAccountToken: false
       containers:
         - name: meilisearch
           image: "getmeili/meilisearch:v1.6"
           imagePullPolicy: IfNotPresent
+          # See the comment on the postgres Deployment's securityContext —
+          # same reasoning: allowPrivilegeEscalation:false is always safe,
+          # but this image's handling of its mounted PVC on first boot is
+          # unverified without live testing, so runAsNonRoot/capability
+          # drops are left for a human with cluster access.
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 7700
               protocol: TCP
@@ -324,11 +425,20 @@ spec:
         app.kubernetes.io/name: minio
         app.kubernetes.io/part-of: goodtribes
     spec:
+      # Nothing here talks to the Kubernetes API.
+      automountServiceAccountToken: false
       containers:
         - name: minio
           image: "minio/minio:latest"
           imagePullPolicy: IfNotPresent
           command: ["minio", "server", "/data", "--console-address", ":9001"]
+          # See the comment on the postgres Deployment's securityContext —
+          # same reasoning: allowPrivilegeEscalation:false is always safe,
+          # but this image's handling of its mounted PVC on first boot is
+          # unverified without live testing, so runAsNonRoot/capability
+          # drops are left for a human with cluster access.
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 9000
               protocol: TCP
@@ -394,6 +504,8 @@ spec:
         app.kubernetes.io/name: postgres
         app.kubernetes.io/part-of: goodtribes
     spec:
+      # Nothing here talks to the Kubernetes API.
+      automountServiceAccountToken: false
       containers:
         - name: postgres
           image: "postgres:16-alpine"
@@ -401,6 +513,17 @@ spec:
           ports:
             - containerPort: 5432
               protocol: TCP
+          # Deliberately NOT runAsNonRoot, NOT readOnlyRootFilesystem, and NOT
+          # dropping capabilities: the official postgres image's entrypoint
+          # runs as root on first boot specifically to chown/initdb the
+          # mounted PVC (needs CAP_CHOWN/CAP_DAC_OVERRIDE, which a blanket
+          # capability drop would remove even from root) — untested against
+          # this cluster's actual PVC state, so not safe to guess at blind.
+          # allowPrivilegeEscalation:false is the one hardening flag that's
+          # always safe regardless (it only blocks gaining NEW privileges via
+          # e.g. a setuid binary, never removes what the process already has).
+          securityContext:
+            allowPrivilegeEscalation: false
           resources:
             limits:
               cpu: 1000m
@@ -463,10 +586,20 @@ spec:
         app.kubernetes.io/name: redis
         app.kubernetes.io/part-of: goodtribes
     spec:
+      # Nothing here talks to the Kubernetes API.
+      automountServiceAccountToken: false
       containers:
         - name: redis
           image: "redis:7-alpine"
           imagePullPolicy: IfNotPresent
+          # allowPrivilegeEscalation:false is always safe. Not runAsNonRoot:
+          # this command bypasses the official image's own entrypoint
+          # (which normally handles dropping to a non-root user), and there's
+          # no PVC here to worry about chown-ing — likely safe to harden
+          # further, but unverified against this specific image tag without
+          # live testing, so left for a human with cluster access to confirm.
+          securityContext:
+            allowPrivilegeEscalation: false
           # Run through a shell so $REDIS_PASSWORD is expanded by sh, not by
           # Kubernetes. K8s only substitutes $(VAR) from the container's `env`
           # list — never from `envFrom` — so the previous $(REDIS_PASSWORD) form
@@ -535,9 +668,12 @@ spec:
             app.kubernetes.io/part-of: goodtribes
         spec:
           restartPolicy: OnFailure
+          automountServiceAccountToken: false
           containers:
             - name: github-sync
               image: "curlimages/curl:8.11.1"
+              securityContext:
+                allowPrivilegeEscalation: false
               command:
                 - /bin/sh
                 - -c
@@ -546,6 +682,67 @@ spec:
                     -H "Authorization: Bearer $CRON_SECRET" \
                     -H "Content-Type: application/json" \
                     http://goodtribes-frontend:3000/api/cron/github-sync
+              envFrom:
+                - secretRef:
+                    name: goodtribes-secret
+---
+# Source: goodtribes/templates/minio-backup-cronjob.yaml
+# Protects goodtribes-public/goodtribes-private (user-uploaded files/images —
+# original, non-derived content, unlike Meilisearch's index which is
+# rebuildable from Postgres) against accidental deletion or bucket
+# corruption. Runs `mc mirror` WITHOUT --remove into a dedicated backup
+# bucket: only new/changed objects are copied each run (cheap, incremental),
+# and an object deleted from the live bucket simply stays behind in the
+# mirror rather than being removed there too — that's the actual protection
+# this buys. No pruning/retention window, unlike the Postgres dump job:
+# there's nothing to prune, since this never grows beyond roughly the live
+# buckets' own size (it doesn't keep dated snapshots).
+#
+# Known limitation, same as the Postgres backup job: this MinIO instance
+# backs up to itself (the mirror bucket lives on the same MinIO/PVC as the
+# buckets it's protecting), so it does NOT protect against total loss of
+# MinIO's own volume — only against accidental deletion/overwrite within the
+# live buckets. True off-cluster redundancy needs a separate destination
+# (e.g. `mc mirror` to an external S3-compatible target), which needs a
+# vendor account/credentials this chart doesn't have configured.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: goodtribes-minio-backup
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/part-of: goodtribes
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          containers:
+            - name: mirror
+              image: minio/mc:latest
+              securityContext:
+                allowPrivilegeEscalation: false
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  mc alias set local http://goodtribes-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+                  mc mirror --quiet local/goodtribes-public "local/goodtribes-object-backups/goodtribes-public"
+                  mc mirror --quiet local/goodtribes-private "local/goodtribes-object-backups/goodtribes-private"
               envFrom:
                 - secretRef:
                     name: goodtribes-secret
@@ -575,6 +772,7 @@ spec:
             app.kubernetes.io/part-of: goodtribes
         spec:
           restartPolicy: OnFailure
+          automountServiceAccountToken: false
           volumes:
             - name: backup
               emptyDir: {}
@@ -584,6 +782,8 @@ spec:
             # mc installed.
             - name: pg-dump
               image: "postgres:16-alpine"
+              securityContext:
+                allowPrivilegeEscalation: false
               # $VAR is expanded by sh, not Kubernetes — envFrom vars are never
               # substituted via the $(VAR) syntax (see redis-deployment.yaml
               # for the incident this convention comes from).
@@ -612,6 +812,8 @@ spec:
           containers:
             - name: upload-and-prune
               image: minio/mc:latest
+              securityContext:
+                allowPrivilegeEscalation: false
               command:
                 - sh
                 - -c
@@ -693,9 +895,12 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      automountServiceAccountToken: false
       containers:
         - name: minio-init
           image: minio/mc:latest
+          securityContext:
+            allowPrivilegeEscalation: false
           command:
             - /bin/sh
             - -c
@@ -704,6 +909,7 @@ spec:
               mc mb --ignore-existing local/goodtribes-public
               mc mb --ignore-existing local/goodtribes-private
               mc mb --ignore-existing local/goodtribes-backups
+              mc mb --ignore-existing local/goodtribes-object-backups
               mc anonymous set public local/goodtribes-public
           envFrom:
             - secretRef:
