@@ -260,7 +260,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:fa9eba5995b6bbef25021adc2846dc5569788725"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1f8ccd234b6546fbb6b9124500184328e42005d7"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
