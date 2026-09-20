@@ -260,7 +260,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:0d2bc319a9ac357ec48f96e3c907b914e34cde84"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:ca8cd258a9a2525d547f3f8c6b7902d5786bc0c9"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -429,7 +429,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: minio
-          image: "minio/minio:latest"
+          image: "quay.io/minio/minio:latest"
           imagePullPolicy: IfNotPresent
           command: ["minio", "server", "/data", "--console-address", ":9001"]
           # See the comment on the postgres Deployment's securityContext —
@@ -732,7 +732,7 @@ spec:
           automountServiceAccountToken: false
           containers:
             - name: mirror
-              image: minio/mc:latest
+              image: "quay.io/minio/mc:latest"
               securityContext:
                 allowPrivilegeEscalation: false
               command:
@@ -811,7 +811,7 @@ spec:
                   mountPath: /backup
           containers:
             - name: upload-and-prune
-              image: minio/mc:latest
+              image: "quay.io/minio/mc:latest"
               securityContext:
                 allowPrivilegeEscalation: false
               command:
@@ -898,7 +898,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: minio-init
-          image: minio/mc:latest
+          image: "quay.io/minio/mc:latest"
           securityContext:
             allowPrivilegeEscalation: false
           command:
