@@ -67,6 +67,22 @@ spec:
         cpu: 500m
         memory: 256Mi
 ---
+# Source: goodtribes/templates/frontend-pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: goodtribes-frontend
+  namespace: goodtribes
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: goodtribes
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: goodtribes
+---
 # Source: goodtribes/templates/ghcr-pull-secret.yaml
 apiVersion: v1
 kind: Secret
@@ -234,7 +250,7 @@ metadata:
     app.kubernetes.io/part-of: goodtribes
     app.kubernetes.io/name: frontend
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: frontend
@@ -260,7 +276,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:ca8cd258a9a2525d547f3f8c6b7902d5786bc0c9"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:8921031ba588db5e05d122ec1136ae9153d4c588"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -278,7 +294,7 @@ spec:
           # pod needs a request either way.
           resources:
             limits:
-              cpu: 1000m
+              cpu: 2000m
               memory: 512Mi
             requests:
               cpu: 200m
@@ -309,18 +325,38 @@ spec:
           # to restore traffic while the actual DB/Redis reachability issue
           # is root-caused with real cluster access. Re-apply the DB+Redis
           # readiness check once that's confirmed fixed — see CLAUDE.md.
+          # timeoutSeconds is explicit because the default is 1s, and 1s is
+          # not enough for this probe: "/" returns a 307 to "/sv" and kubelet
+          # follows it, so the budget covers a redirect AND a full SSR render.
+          # Idle that is ~5ms + ~80ms, but measured at 12 concurrent requests
+          # the round trip is 1.0-1.4s — i.e. it blows a 1s budget under quite
+          # ordinary load. That is what produced the frontend's 15 restarts:
+          # three consecutive liveness misses during a traffic burst, killing
+          # the pod at exactly its busiest moment.
+          #
+          # Readiness matters even more than liveness here. At a single
+          # replica a readiness miss empties the Service's endpoint list and
+          # Traefik answers every path with its generic 404 — the same
+          # user-visible outage the EMERGENCY REVERT above describes, just
+          # reached through load instead of a DB blip.
           readinessProbe:
             httpGet:
               path: /
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /
               port: 3000
             initialDelaySeconds: 10
             periodSeconds: 30
+            timeoutSeconds: 5
+            # 3 misses (~90s) was tight enough that a burst could restart a
+            # pod that was merely busy, never unhealthy. Liveness should catch
+            # a wedged process, not slow responses.
+            failureThreshold: 6
 ---
 # Source: goodtribes/templates/meilisearch-deployment.yaml
 apiVersion: apps/v1
