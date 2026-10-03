@@ -276,7 +276,7 @@ spec:
         - name: ghcr-pull-secret
       containers:
         - name: frontend
-          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:dddb2736e4223919928b79c80148b0efb2bdffe8"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/frontend:1b58e5f7e125256beb13ff0ef33e9bbcbcf675d3"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -463,9 +463,11 @@ spec:
     spec:
       # Nothing here talks to the Kubernetes API.
       automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: minio
-          image: "quay.io/minio/minio:latest"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/minio:RELEASE.2025-09-07T16-13-09Z"
           imagePullPolicy: IfNotPresent
           command: ["minio", "server", "/data", "--console-address", ":9001"]
           # See the comment on the postgres Deployment's securityContext —
@@ -766,9 +768,11 @@ spec:
         spec:
           restartPolicy: OnFailure
           automountServiceAccountToken: false
+          imagePullSecrets:
+            - name: ghcr-pull-secret
           containers:
             - name: mirror
-              image: "quay.io/minio/mc:latest"
+              image: "ghcr.io/goodtribes-org/goodtribes.org/mc:RELEASE.2025-08-13T08-35-41Z"
               securityContext:
                 allowPrivilegeEscalation: false
               command:
@@ -809,6 +813,8 @@ spec:
         spec:
           restartPolicy: OnFailure
           automountServiceAccountToken: false
+          imagePullSecrets:
+            - name: ghcr-pull-secret
           volumes:
             - name: backup
               emptyDir: {}
@@ -847,7 +853,7 @@ spec:
                   mountPath: /backup
           containers:
             - name: upload-and-prune
-              image: "quay.io/minio/mc:latest"
+              image: "ghcr.io/goodtribes-org/goodtribes.org/mc:RELEASE.2025-08-13T08-35-41Z"
               securityContext:
                 allowPrivilegeEscalation: false
               command:
@@ -932,9 +938,11 @@ spec:
     spec:
       restartPolicy: OnFailure
       automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
       containers:
         - name: minio-init
-          image: "quay.io/minio/mc:latest"
+          image: "ghcr.io/goodtribes-org/goodtribes.org/mc:RELEASE.2025-08-13T08-35-41Z"
           securityContext:
             allowPrivilegeEscalation: false
           command:
